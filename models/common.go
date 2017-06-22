@@ -12,6 +12,7 @@ import (
 	"math/rand"
 	"log"
 	"encoding/binary"
+	"strconv"
 )
 
 const (
@@ -126,5 +127,9 @@ func BytesToInt64(buf []byte) int64 {
 	return int64(binary.BigEndian.Uint64(buf))
 }
 
+
+func Itoa(i int32) string {
+	return strconv.FormatInt(int64(i), 10)
+}
 
 

@@ -9,6 +9,8 @@ import (
 	fabricClient "github.com/hyperledger/fabric-sdk-go/fabric-client"
 	fcutil "github.com/hyperledger/fabric-sdk-go/fabric-client/util"
 	bccspFactory "github.com/hyperledger/fabric/bccsp/factory"
+	"os"
+	"path"
 )
 
 // BaseSetupImpl implementation of BaseTestSetup
@@ -75,16 +77,21 @@ func (setup *BaseSetupImpl) Initialize() error {
 	setup.Chain = chain
 
 	ordererAdmin, err := GetOrdererAdmin(client)
-	if err != nil {
+	if err != nil  {
 		return fmt.Errorf("Error getting orderer admin user: %v", err)
 	}
+	if ordererAdmin != nil {
 
+	}
 	// Create and join channel
+	/*
 	if err := fcutil.CreateAndJoinChannel(client, ordererAdmin, org1Admin, chain, setup.ChannelConfig); err != nil {
 		return fmt.Errorf("CreateAndJoinChannel return error: %v", err)
 	}
+	*/
 
 	client.SetUserContext(org1Admin)
+
 	if err := setup.setupEventHub(client); err != nil {
 		return err
 	}
@@ -144,4 +151,54 @@ func (setup *BaseSetupImpl) InitConfig() error {
 		return err
 	}
 	return nil
+}
+
+// Query ...
+func (setup *BaseSetupImpl) Query(chainID string, chainCodeID string, args []string) (string, error) {
+	transactionProposalResponses, _, err := fcutil.CreateAndSendTransactionProposal(setup.Chain, chainCodeID, chainID, args, []fabricClient.Peer{setup.Chain.GetPrimaryPeer()}, nil)
+	if err != nil {
+		return "", fmt.Errorf("CreateAndSendTransactionProposal return error: %v", err)
+	}
+	return string(transactionProposalResponses[0].GetResponsePayload()), nil
+}
+
+
+func (setup *BaseSetupImpl) InstallAndInstantiateExampleCC(appid string) error {
+
+	chainCodePath := "github.com/mychaincode"
+	chainCodeVersion := "v0"
+
+	if setup.ChainCodeID == "" {
+		setup.ChainCodeID = fcutil.GenerateRandomID()
+	}
+
+	if err := setup.InstallCC(setup.ChainCodeID, chainCodePath, chainCodeVersion, nil); err != nil {
+		return err
+	}
+
+	var args []string
+	args = append(args, "init")
+	args = append(args, appid)
+	args = append(args, "100")
+
+
+	return setup.InstantiateCC(setup.ChainCodeID, setup.ChainID, chainCodePath, chainCodeVersion, args)
+}
+
+func (setup *BaseSetupImpl) InstallCC(chainCodeID string, chainCodePath string, chainCodeVersion string, chaincodePackage []byte) error {
+	if err := fcutil.SendInstallCC(setup.Client, setup.Chain, chainCodeID, chainCodePath, chainCodeVersion, chaincodePackage, setup.Chain.GetPeers(), setup.GetDeployPath()); err != nil {
+		return fmt.Errorf("SendInstallProposal return error: %v", err)
+	}
+	return nil
+}
+
+func (setup *BaseSetupImpl) InstantiateCC(chainCodeID string, chainID string, chainCodePath string, chainCodeVersion string, args []string) error {
+	if err := fcutil.SendInstantiateCC(setup.Chain, chainCodeID, chainID, args, chainCodePath, chainCodeVersion, []fabricClient.Peer{setup.Chain.GetPrimaryPeer()}, setup.EventHub); err != nil {
+		return err
+	}
+	return nil
+}
+func (setup *BaseSetupImpl) GetDeployPath() string {
+	pwd, _ := os.Getwd()
+	return path.Join(pwd, "../")
 }

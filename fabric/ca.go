@@ -2,23 +2,13 @@ package fabric
 
 
 import (
-	/*
-	"bytes"
-	"crypto/x509"
-	"encoding/pem"
-	"fmt"
-	"math/rand"
-	"strconv"
-	"testing"
-	"time"
-*/
+
 	config "github.com/hyperledger/fabric-sdk-go/config"
 	fabricClient "github.com/hyperledger/fabric-sdk-go/fabric-client"
 	kvs "github.com/hyperledger/fabric-sdk-go/fabric-client/keyvaluestore"
 	bccspFactory "github.com/hyperledger/fabric/bccsp/factory"
 
 	fabricCAClient "github.com/hyperledger/fabric-sdk-go/fabric-ca-client"
-	//"github.com/hyperledger/fabric-sdk-go/fabric-client/events"
 	"encoding/pem"
 	"crypto/x509"
 	"log"

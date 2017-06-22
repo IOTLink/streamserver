@@ -21,6 +21,7 @@ func main() {
 
 	client := pb.NewStreamServerClient(conn)
 
+	//RegisterReq
 	regInfo := &pb.RegisterReq{User:"client", Pwd:"123456"}
 	msg, err := client.RegisterClient(context.Background(), regInfo)
 	if err != nil {
@@ -29,6 +30,31 @@ func main() {
 	if msg != nil {
 		appInfo, _ := json.Marshal(msg)
 		log.Printf("appInfo: %s", appInfo)
+	}
+
+	//Asset
+	/*
+	asset := &pb.Asset{Userid: "9fb05ce2c57905b41be708425bdda6c8", Value:100}
+	msgReply, err := client.InitAsset(context.Background(), asset)
+	if err != nil {
+		log.Fatalf("msg:%s,%v",msgReply.Message, err)
+	}
+	if msgReply != nil {
+		msgAsset, _ := json.Marshal(msgReply)
+		log.Printf("Asset: %s", msgAsset)
+	}
+	*/
+
+
+	//QueryAsset
+	asset := &pb.Asset{Userid: "9fb05ce2c57905b41be708425bdda6c8", Value:0}
+	msgasset, err := client.QueryAsset(context.Background(), asset)
+	if err != nil {
+		log.Fatalf("msg:%v", err)
+	}
+	if msgasset != nil {
+		msgasset, _ := json.Marshal(msgasset)
+		log.Printf("Asset: %s", msgasset)
 	}
 
 }

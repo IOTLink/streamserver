@@ -11,6 +11,7 @@ import (
 	"encoding/hex"
 	"google.golang.org/grpc/reflection"
 	. "streamserver/fabric"
+	"strconv"
 )
 
 const (
@@ -22,6 +23,7 @@ type server struct{
 	AuthPwd  string
 	db       ManageDB
 	myca     CA
+	fabric   FabricServer
 }
 var myserver server
 
@@ -37,6 +39,7 @@ func (s *server) InitServer() {
 	}
 
 	s.myca.InitCaServer()
+	s.fabric.Init()
 }
 
 func (s *server) UnInitServer() {
@@ -98,7 +101,13 @@ func (s *server) InitAsset(ctx context.Context, in *pb.Asset) (*pb.MsgReply, err
 	if err != nil || user != nil{
 
 	}
-	return nil,nil
+
+	err = s.fabric.Invoke(in.Userid)
+	if err != nil {
+		return &pb.MsgReply{Message : "Failt"}, err
+	}
+
+	return &pb.MsgReply{Message : "OK"}, nil
 }
 
 func (s *server) DealTransaction(ctx context.Context, in *pb.Transaction) (*pb.MsgReply, error){
@@ -142,7 +151,13 @@ func (s *server)  QueryAsset(ctx context.Context, in *pb.Asset) (*pb.Asset, erro
 	if err != nil || user != nil{
 
 	}
-	return nil,nil
+	value, err := s.fabric.Query(in.Userid)
+	if err != nil {
+		return &pb.Asset{Userid : "query failt", Value: 0}, err
+	}
+	//log.Fatalf("user %s, value %s", in.Userid, value)
+	ivalue,_ := strconv.ParseInt(value, 10, 32)
+	return &pb.Asset{Userid : in.Userid, Value: int32(ivalue)}, nil
 }
 
 func main() {

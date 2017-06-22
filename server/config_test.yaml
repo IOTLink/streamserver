@@ -47,7 +47,7 @@ client:
     serverHostOverride: "orderer.example.com"
 
  logging:
-  level: info
+  level: debug
 
  fabricCA:
   tlsEnabled: false
@@ -64,4 +64,4 @@ client:
    certfile: "$GOPATH/src/github.com/hyperledger/fabric-sdk-go/test/fixtures/tls/fabricca/client/client_client1.pem"
 
  cryptoconfig:
-  path: "$GOPATH/src/github.com/hyperledger/fabric-sdk-go/test/fixtures/channel/crypto-config"
+  path: "./crypto-config"
