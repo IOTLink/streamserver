@@ -34,7 +34,7 @@ func main() {
 
 	//Asset
 	/*
-	asset := &pb.Asset{Userid: "9fb05ce2c57905b41be708425bdda6c8", Value:100}
+	asset := &pb.Asset{Userid: "2bf934667120d18ea30c4c55e59e56ed", Value:100}
 	msgReply, err := client.InitAsset(context.Background(), asset)
 	if err != nil {
 		log.Fatalf("msg:%s,%v",msgReply.Message, err)
@@ -42,12 +42,22 @@ func main() {
 	if msgReply != nil {
 		msgAsset, _ := json.Marshal(msgReply)
 		log.Printf("Asset: %s", msgAsset)
+	}*/
+
+	//DealTransaction
+	tx := &pb.Transaction{Ownerid:"2bf934667120d18ea30c4c55e59e56ed", Receiverid:"cc84e1f40fd9d36c90061ea2ef371f40",Value : 10}
+	msgRep, err := client.DealTransaction(context.Background(), tx)
+	if err != nil {
+		log.Fatalf("msg:%v", err)
 	}
-	*/
+	if msg != nil {
+		info, _ := json.Marshal(msgRep)
+		log.Printf("Asset: %s", info)
+	}
 
 
 	//QueryAsset
-	asset := &pb.Asset{Userid: "9fb05ce2c57905b41be708425bdda6c8", Value:0}
+	asset := &pb.Asset{Userid: "2bf934667120d18ea30c4c55e59e56ed", Value: 0 }
 	msgasset, err := client.QueryAsset(context.Background(), asset)
 	if err != nil {
 		log.Fatalf("msg:%v", err)
@@ -56,5 +66,4 @@ func main() {
 		msgasset, _ := json.Marshal(msgasset)
 		log.Printf("Asset: %s", msgasset)
 	}
-
 }

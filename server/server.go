@@ -43,7 +43,7 @@ func (s *server) InitServer() {
 }
 
 func (s *server) UnInitServer() {
-	log.Printf("destory database...");
+	log.Printf("destory database...")
 	s.db.UnRegisterDB()
 }
 
@@ -102,7 +102,7 @@ func (s *server) InitAsset(ctx context.Context, in *pb.Asset) (*pb.MsgReply, err
 
 	}
 
-	err = s.fabric.Invoke(in.Userid)
+	err = s.fabric.Invoke(in.Userid, in.Value)
 	if err != nil {
 		return &pb.MsgReply{Message : "Failt"}, err
 	}
@@ -135,8 +135,12 @@ func (s *server) DealTransaction(ctx context.Context, in *pb.Transaction) (*pb.M
 	if err2 != nil || user2 != nil{
 
 	}
+	txId, err := s.fabric.Move(in.Ownerid, in.Receiverid, Itoa(in.Value))
+	if err != nil {
+		return &pb.MsgReply{Message : "tx is failt"}, err
+	}
 
-	return nil,nil
+	return &pb.MsgReply{Message : txId}, nil
 }
 
 func (s *server)  QueryAsset(ctx context.Context, in *pb.Asset) (*pb.Asset, error){

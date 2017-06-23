@@ -2,7 +2,7 @@ package fabric
 
 import (
 	"fmt"
-
+	"strconv"
 	"github.com/hyperledger/fabric-sdk-go/config"
 	"github.com/hyperledger/fabric-sdk-go/fabric-client/events"
 
@@ -11,6 +11,8 @@ import (
 	bccspFactory "github.com/hyperledger/fabric/bccsp/factory"
 	"os"
 	"path"
+	"time"
+	//"github.com/hyperledger/fabric/core/chaincode/shim"
 )
 
 // BaseSetupImpl implementation of BaseTestSetup
@@ -162,12 +164,45 @@ func (setup *BaseSetupImpl) Query(chainID string, chainCodeID string, args []str
 	return string(transactionProposalResponses[0].GetResponsePayload()), nil
 }
 
+func (setup *BaseSetupImpl)MoveFunds(appidA string, appidB string, value string) (string, error){
+	var args []string
+	args = append(args, "invoke")
+	args = append(args, "move")
+	args = append(args, appidA)
+	args = append(args, appidB)
+	args = append(args, value)
 
-func (setup *BaseSetupImpl) InstallAndInstantiateExampleCC(appid string) error {
+	transientDataMap := make(map[string][]byte)
+	transientDataMap["result"] = []byte("Transient data in move funds...")
+
+	transactionProposalResponse, txID, err := fcutil.CreateAndSendTransactionProposal(setup.Chain, setup.ChainCodeID, setup.ChainID, args, []fabricClient.Peer{setup.Chain.GetPrimaryPeer()}, transientDataMap)
+	if err != nil {
+		return "", fmt.Errorf("CreateAndSendTransactionProposal return error: %v", err)
+	}
+	// Register for commit event
+	done, fail := fcutil.RegisterTxEvent(txID, setup.EventHub)
+
+	txResponse, err := fcutil.CreateAndSendTransaction(setup.Chain, transactionProposalResponse)
+	if err != nil {
+		return "", fmt.Errorf("CreateAndSendTransaction return error: %v", err)
+	}
+	fmt.Println(txResponse)
+	select {
+	case <-done:
+	case <-fail:
+		return "", fmt.Errorf("invoke Error received from eventhub for txid(%s) error(%v)", txID, fail)
+	case <-time.After(time.Second * 30):
+		return "", fmt.Errorf("invoke Didn't receive block event for txid(%s)", txID)
+	}
+	return txID, nil
+
+
+}
+
+func (setup *BaseSetupImpl) InstallAndInstantiateExampleCC(appid string, value int32) error {
 
 	chainCodePath := "github.com/mychaincode"
 	chainCodeVersion := "v0"
-
 	if setup.ChainCodeID == "" {
 		setup.ChainCodeID = fcutil.GenerateRandomID()
 	}
@@ -177,9 +212,10 @@ func (setup *BaseSetupImpl) InstallAndInstantiateExampleCC(appid string) error {
 	}
 
 	var args []string
+	valueStr := strconv.FormatInt(int64(value), 10)
 	args = append(args, "init")
 	args = append(args, appid)
-	args = append(args, "100")
+	args = append(args, valueStr)
 
 
 	return setup.InstantiateCC(setup.ChainCodeID, setup.ChainID, chainCodePath, chainCodeVersion, args)

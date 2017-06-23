@@ -2,6 +2,9 @@ package fabric
 
 import (
 	"log"
+	//"fmt"
+	"time"
+	"github.com/hyperledger/fabric-sdk-go/fabric-client/util"
 )
 
 type FabricServer struct {
@@ -14,7 +17,7 @@ func (fabric *FabricServer)Init() {
 		ChainID:         "mychannel",
 		ChannelConfig:   "./channel.tx",
 		ConnectEventHub: true,
-		ChainCodeID:     "mychaincodev6",
+		ChainCodeID:     "mychaincodev8",
 
 	}
 	if err := testSetup.Initialize(); err != nil {
@@ -24,8 +27,8 @@ func (fabric *FabricServer)Init() {
 
 }
 
-func (fabric *FabricServer)Invoke(appid string) error{
-
+func (fabric *FabricServer)Invoke(appid string, value int32) error{
+	/*
 	testSetup := BaseSetupImpl{
 		ConfigFile:      "./config_test.yaml",
 		ChainID:         "mychannel",
@@ -37,8 +40,9 @@ func (fabric *FabricServer)Invoke(appid string) error{
 		log.Fatalf("fabric server init abort %s",err.Error())
 	}
 	fabric.setup = testSetup
+	*/
 
-	if err := fabric.setup.InstallAndInstantiateExampleCC(appid); err != nil {
+	if err := fabric.setup.InstallAndInstantiateExampleCC(appid, value); err != nil {
 		log.Fatalf("InstallAndInstantiateExampleCC return error: %v", err)
 		return err
 	}
@@ -66,8 +70,28 @@ func (fabric *FabricServer)Query(appid string) (string, error){
 	}
 	*/
 	var args []string
-	args = append(args, "invoke")
+	//args = append(args, "invoke")
 	args = append(args, "query")
 	args = append(args, appid)
 	return fabric.setup.Query(fabric.setup.ChainID, fabric.setup.ChainCodeID, args)
+}
+
+func (fabric *FabricServer)Move(appidA string, appidB string, value string) (string, error) {
+
+	eventID := "test([a-zA-Z]+)"
+	done, rce := util.RegisterCCEvent(fabric.setup.ChainCodeID, eventID, fabric.setup.EventHub)
+
+	txId, err := fabric.setup.MoveFunds(appidA, appidB, value)
+	if err != nil {
+		log.Fatalf("Move funds return error: %v", err)
+	}
+
+	select {
+	case <-done:
+	case <-time.After(time.Second * 20):
+		log.Fatalf("Did NOT receive CC for eventId(%s)\n", eventID)
+	}
+
+	fabric.setup.EventHub.UnregisterChaincodeEvent(rce)
+	return txId,nil
 }

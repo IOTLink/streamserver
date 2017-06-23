@@ -26,7 +26,6 @@ var logger = logging.MustGetLogger("fabric_sdk_go")
 
 // GetChain initializes and returns a chain based on config
 func GetChain(client fabricClient.Client, chainID string) (fabricClient.Chain, error) {
-
 	chain, err := client.NewChain(chainID)
 	if err != nil {
 		return nil, fmt.Errorf("NewChain return error: %v", err)

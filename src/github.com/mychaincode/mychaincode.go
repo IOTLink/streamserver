@@ -16,29 +16,25 @@ type SimpleChaincode struct {
 func (t *SimpleChaincode) Init(stub shim.ChaincodeStubInterface) pb.Response {
 	fmt.Println("########### example_cc Init ###########")
 	_, args := stub.GetFunctionAndParameters()
-	var A string    // Entities
-	var Aval int // Asset holdings
+	var A string
+	var Aval int64 // Asset holdings
 	var err error
 
 	if len(args) != 2 {
-		return shim.Error("Incorrect number of arguments. Expecting 4")
+		return shim.Error("Incorrect number of arguments. Expecting 2")
 	}
-
-	// Initialize the chaincode
 	A = args[0]
-	Aval, err = strconv.Atoi(args[1])
+	// Initialize the chaincode
+	Aval, err = strconv.ParseInt(args[1], 10, 64)
 	if err != nil {
 		return shim.Error("Expecting integer value for asset holding")
 	}
-
 	fmt.Printf("Aval = %d\n", Aval)
-
 	// Write the state to the ledger
-	err = stub.PutState(A, []byte(strconv.Itoa(Aval)))
+	err = stub.PutState(A, []byte(strconv.FormatInt(Aval,10)))
 	if err != nil {
 		return shim.Error(err.Error())
 	}
-
 
 	if transientMap, err := stub.GetTransient(); err == nil {
 		if transientData, ok := transientMap["result"]; ok {
@@ -47,12 +43,32 @@ func (t *SimpleChaincode) Init(stub shim.ChaincodeStubInterface) pb.Response {
 		}
 	}
 	return shim.Success(nil)
-
 }
 
 // Query ...
 func (t *SimpleChaincode) Query(stub shim.ChaincodeStubInterface) pb.Response {
-	return shim.Error("Unknown supported call")
+	_, args := stub.GetFunctionAndParameters()
+
+	if len(args) != 1 {
+		return shim.Error("Incorrect number of arguments. Expecting 1")
+	}
+	var A string
+	A = args[0]
+	// Get the state from the ledger
+	Avalbytes, err := stub.GetState(A)
+	if err != nil {
+		jsonResp := "{\"Error\":\"Failed to get state for " + A + "\"}"
+		return shim.Error(jsonResp)
+	}
+
+	if Avalbytes == nil {
+		jsonResp := "{\"Error\":\"Nil amount for " + A + "\"}"
+		return shim.Error(jsonResp)
+	}
+
+	jsonResp := "{\"Name\":\"" + A + "\",\"Amount\":\"" + string(Avalbytes) + "\"}"
+	fmt.Printf("Query Response:%s\n", jsonResp)
+	return shim.Success(Avalbytes)
 }
 
 // Invoke ...
@@ -69,6 +85,17 @@ func (t *SimpleChaincode) Invoke(stub shim.ChaincodeStubInterface) pb.Response {
 		return shim.Error("Incorrect number of arguments. Expecting at least 2")
 	}
 
+	if args[0] == "move" {
+		if err := stub.SetEvent("testEvent", []byte("Test Payload")); err != nil {
+			return shim.Error("Unable to set CC event: testEvent. Aborting transaction ...")
+		}
+		return t.move(stub, args)
+	}
+
+	if args[0] == "init" {
+		return t.init(stub, args)
+	}
+
 	if args[0] == "delete" {
 		// Deletes an entity from its state
 		return t.delete(stub, args)
@@ -78,20 +105,15 @@ func (t *SimpleChaincode) Invoke(stub shim.ChaincodeStubInterface) pb.Response {
 		// queries an entity state
 		return t.query(stub, args)
 	}
-	if args[0] == "move" {
-		if err := stub.SetEvent("testEvent", []byte("Test Payload")); err != nil {
-			return shim.Error("Unable to set CC event: testEvent. Aborting transaction ...")
-		}
-		return t.move(stub, args)
-	}
+
 	return shim.Error("Unknown action, check the first argument, must be one of 'delete', 'query', or 'move'")
 }
 
 func (t *SimpleChaincode) move(stub shim.ChaincodeStubInterface, args []string) pb.Response {
 	// must be an invoke
 	var A, B string    // Entities
-	var Aval, Bval int // Asset holdings
-	var X int          // Transaction value
+	var Aval, Bval int64 // Asset holdings
+	var X int64          // Transaction value
 	var err error
 	if len(args) != 4 {
 		return shim.Error("Incorrect number of arguments. Expecting 4, function followed by 2 names and 1 value")
@@ -107,21 +129,31 @@ func (t *SimpleChaincode) move(stub shim.ChaincodeStubInterface, args []string) 
 		return shim.Error("Failed to get state")
 	}
 	if Avalbytes == nil {
-		return shim.Error("Entity not found")
+		err = stub.PutState(A, []byte("0"))
+		if err != nil {
+			return shim.Error("Entity not found")
+			//return shim.Error(err.Error())
+		}
+		Avalbytes = []byte("0")
 	}
-	Aval, _ = strconv.Atoi(string(Avalbytes))
+	Aval, _ = strconv.ParseInt(string(Avalbytes), 10, 64)
 
 	Bvalbytes, err := stub.GetState(B)
 	if err != nil {
 		return shim.Error("Failed to get state")
 	}
 	if Bvalbytes == nil {
-		return shim.Error("Entity not found")
+		err = stub.PutState(B, []byte("0"))
+		if err != nil {
+			return shim.Error("Entity not found")
+			//return shim.Error(err.Error())
+		}
+		Bvalbytes = []byte("0")
 	}
-	Bval, _ = strconv.Atoi(string(Bvalbytes))
+	Bval, _ = strconv.ParseInt(string(Bvalbytes), 10, 64)
 
 	// Perform the execution
-	X, err = strconv.Atoi(args[3])
+	X, err = strconv.ParseInt(args[3], 10, 64)
 	if err != nil {
 		return shim.Error("Invalid transaction amount, expecting a integer value")
 	}
@@ -130,12 +162,12 @@ func (t *SimpleChaincode) move(stub shim.ChaincodeStubInterface, args []string) 
 	fmt.Printf("Aval = %d, Bval = %d\n", Aval, Bval)
 
 	// Write the state back to the ledger
-	err = stub.PutState(A, []byte(strconv.Itoa(Aval)))
+	err = stub.PutState(A, []byte(strconv.FormatInt(Aval,10)))
 	if err != nil {
 		return shim.Error(err.Error())
 	}
 
-	err = stub.PutState(B, []byte(strconv.Itoa(Bval)))
+	err = stub.PutState(B, []byte(strconv.FormatInt(Bval,10)))
 	if err != nil {
 		return shim.Error(err.Error())
 	}
@@ -163,6 +195,29 @@ func (t *SimpleChaincode) delete(stub shim.ChaincodeStubInterface, args []string
 		return shim.Error("Failed to delete state")
 	}
 
+	return shim.Success(nil)
+}
+
+func (t *SimpleChaincode) init(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+	if len(args) != 2{
+		return shim.Error("Incorrect number of arguments. Expecting 1")
+	}
+	var A string
+	var Aval int64 // Asset holdings
+	var err error
+
+	A = args[1]
+	// Initialize the chaincode
+	Aval, err = strconv.ParseInt(args[2], 10, 64)
+	if err != nil {
+		return shim.Error("Expecting integer value for asset holding")
+	}
+	fmt.Printf("Aval = %d\n", Aval)
+	// Write the state to the ledger
+	err = stub.PutState(A, []byte(strconv.FormatInt(Aval,10)))
+	if err != nil {
+		return shim.Error(err.Error())
+	}
 	return shim.Success(nil)
 }
 
@@ -200,3 +255,4 @@ func main() {
 		fmt.Printf("Error starting Simple chaincode: %s", err)
 	}
 }
+
