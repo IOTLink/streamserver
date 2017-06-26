@@ -214,6 +214,7 @@ func (setup *BaseSetupImpl) InstallAndInstantiateExampleCC(appid string, value i
 		return err
 	}
 
+
 	var args []string
 	valueStr := strconv.FormatInt(int64(value), 10)
 	args = append(args, "init")

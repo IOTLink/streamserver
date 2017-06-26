@@ -18,7 +18,7 @@ func (fabric *FabricServer)Init() {
 		ChainID:         "mychannel",
 		ChannelConfig:   "./channel.tx",
 		ConnectEventHub: true,
-		ChainCodeID:     "mychaincodev8",
+		ChainCodeID:     "mychaincodev10",
 
 	}
 	if err := testSetup.Initialize(); err != nil {

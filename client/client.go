@@ -6,6 +6,8 @@ import (
 	pb "streamserver/protocol"
 	"golang.org/x/net/context"
 	"encoding/json"
+	"time"
+	"fmt"
 )
 
 const (
@@ -32,6 +34,7 @@ func main() {
 		log.Printf("register: %s", appInfo)
 	}
 
+
 	//Asset
 	/*
 	asset := &pb.Asset{Userid: "b5a2f040374c79a11aa27d5020cc9a6f", Value:100}
@@ -45,8 +48,9 @@ func main() {
 	}
 	*/
 
+	//return
 	//DealTransaction
-
+	start := time.Now()
 	tx := &pb.Transaction{Ownerid:"b5a2f040374c79a11aa27d5020cc9a6f", Receiverid:"6ea981c23737f0624c16ed7de2d2b8d0",Value : 10}
 	msgRep, err := client.DealTransaction(context.Background(), tx)
 	if err != nil {
@@ -56,6 +60,7 @@ func main() {
 		info, _ := json.Marshal(msgRep)
 		log.Printf("move txid: %s", info)
 	}
+	fmt.Printf("SendTransactionProposal %.2fs elapsed\n", time.Since(start).Seconds())
 
 	asset := &pb.Asset{Userid: "b5a2f040374c79a11aa27d5020cc9a6f", Value: 0 }
 	msgasset, err := client.QueryAsset(context.Background(), asset)
