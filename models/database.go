@@ -74,12 +74,15 @@ func (db *ManageDB) RegisterDB() (error){
 	} else {
 		log.Printf("connecting postgresql success!")
 	}
+	//defer dbase.Close()
 	db.Database = dbase
 
 	err = db.Database.Ping()
 	if err != nil {
 		log.Printf("connecting postgresql failt!")
+		return err
 	}
+	db.Database.SetMaxIdleConns(5)
 	return nil
 }
 
@@ -90,10 +93,13 @@ func (db *ManageDB) UnRegisterDB() {
 
 func (db *ManageDB) InsertAppInfo(appid string, appkey string, registime string) (int, error){
 	var lastInsertId int
-	err := db.Database.QueryRow("INSERT INTO app_reg_tab(appid, appkey, registime) VALUES($1,$2,$3) returning id;", appid, appkey, registime).Scan(&lastInsertId)
+	//row := db.Database.QueryRow("INSERT INTO app_reg_tab(appid, appkey, registime) VALUES($1,$2,$3) returning id;", appid, appkey, registime).Scan(&lastInsertId)
+	row := db.Database.QueryRow("INSERT INTO app_reg_tab(appid, appkey, registime) VALUES($1,$2,$3) returning id;", appid, appkey, registime)
+	err := row.Scan(&lastInsertId)
+
 	if err != nil {
-		log.Printf("insert error: %s", error.Error(err))
-		return 0, err
+		log.Printf("insert error: %s", err.Error())
+		return -1, err
 	}
 	log.Printf("last inserted id = %d", lastInsertId)
 	return lastInsertId, nil
@@ -101,11 +107,8 @@ func (db *ManageDB) InsertAppInfo(appid string, appkey string, registime string)
 
 func (db *ManageDB) QueryAppInfo(appid string) (string, string, error){
 	sql := fmt.Sprintf("select appkey,registime from app_reg_tab where appid = '%s'", appid)
-	err := db.Database.Ping()
-	if err != nil {
-		log.Printf("connecting postgresql failt!")
-	}
 	rows, err := db.Database.Query(sql)
+	defer rows.Close()
 	if err != nil {
 		log.Printf("query error: %s", error.Error(err))
 		return "", "", err
@@ -127,10 +130,8 @@ func (db *ManageDB) QueryAppInfo(appid string) (string, string, error){
 func (db *ManageDB) IsExist(appid string) (bool, error) {
 	sql := fmt.Sprintf("select id from app_reg_tab where appid = '%s'", appid)
 	log.Printf("Query %s",sql)
-	if db.Database == nil {
-		log.Printf("db.Database is nil")
-	}
 	rows, err := db.Database.Query(sql)
+	defer rows.Close()
 	if err != nil {
 		log.Printf("IsExist query error: %s", error.Error(err))
 		return false, err
@@ -139,7 +140,8 @@ func (db *ManageDB) IsExist(appid string) (bool, error) {
 		log.Printf("appid is not exist")
 		return false, err
 	}
-	return rows.Next(),nil
+	isExist := rows.Next()
+	return isExist, nil
 }
 
 /*

@@ -29,12 +29,12 @@ func main() {
 	}
 	if msg != nil {
 		appInfo, _ := json.Marshal(msg)
-		log.Printf("appInfo: %s", appInfo)
+		log.Printf("register: %s", appInfo)
 	}
 
 	//Asset
 	/*
-	asset := &pb.Asset{Userid: "2bf934667120d18ea30c4c55e59e56ed", Value:100}
+	asset := &pb.Asset{Userid: "b5a2f040374c79a11aa27d5020cc9a6f", Value:100}
 	msgReply, err := client.InitAsset(context.Background(), asset)
 	if err != nil {
 		log.Fatalf("msg:%s,%v",msgReply.Message, err)
@@ -42,28 +42,40 @@ func main() {
 	if msgReply != nil {
 		msgAsset, _ := json.Marshal(msgReply)
 		log.Printf("Asset: %s", msgAsset)
-	}*/
+	}
+	*/
 
 	//DealTransaction
-	tx := &pb.Transaction{Ownerid:"2bf934667120d18ea30c4c55e59e56ed", Receiverid:"cc84e1f40fd9d36c90061ea2ef371f40",Value : 10}
+
+	tx := &pb.Transaction{Ownerid:"b5a2f040374c79a11aa27d5020cc9a6f", Receiverid:"6ea981c23737f0624c16ed7de2d2b8d0",Value : 10}
 	msgRep, err := client.DealTransaction(context.Background(), tx)
 	if err != nil {
 		log.Fatalf("msg:%v", err)
 	}
 	if msg != nil {
 		info, _ := json.Marshal(msgRep)
-		log.Printf("Asset: %s", info)
+		log.Printf("move txid: %s", info)
 	}
 
-
-	//QueryAsset
-	asset := &pb.Asset{Userid: "2bf934667120d18ea30c4c55e59e56ed", Value: 0 }
+	asset := &pb.Asset{Userid: "b5a2f040374c79a11aa27d5020cc9a6f", Value: 0 }
 	msgasset, err := client.QueryAsset(context.Background(), asset)
 	if err != nil {
 		log.Fatalf("msg:%v", err)
 	}
 	if msgasset != nil {
 		msgasset, _ := json.Marshal(msgasset)
-		log.Printf("Asset: %s", msgasset)
+		log.Printf("query1: %s", msgasset)
 	}
+	//QueryAsset
+
+	asset = &pb.Asset{Userid: "6ea981c23737f0624c16ed7de2d2b8d0", Value: 0 }
+	msgasset, err = client.QueryAsset(context.Background(), asset)
+	if err != nil {
+		log.Fatalf("msg:%v", err)
+	}
+	if msgasset != nil {
+		msgasset, _ := json.Marshal(msgasset)
+		log.Printf("query2: %s", msgasset)
+	}
+
 }

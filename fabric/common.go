@@ -11,8 +11,9 @@ import (
 	bccspFactory "github.com/hyperledger/fabric/bccsp/factory"
 	"os"
 	"path"
-	"time"
+	//"time"
 	//"github.com/hyperledger/fabric/core/chaincode/shim"
+	"time"
 )
 
 // BaseSetupImpl implementation of BaseTestSetup
@@ -187,6 +188,7 @@ func (setup *BaseSetupImpl)MoveFunds(appidA string, appidB string, value string)
 		return "", fmt.Errorf("CreateAndSendTransaction return error: %v", err)
 	}
 	fmt.Println(txResponse)
+
 	select {
 	case <-done:
 	case <-fail:
@@ -194,6 +196,7 @@ func (setup *BaseSetupImpl)MoveFunds(appidA string, appidB string, value string)
 	case <-time.After(time.Second * 30):
 		return "", fmt.Errorf("invoke Didn't receive block event for txid(%s)", txID)
 	}
+
 	return txID, nil
 
 

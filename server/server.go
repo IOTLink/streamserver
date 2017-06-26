@@ -9,9 +9,14 @@ import (
 	. "streamserver/models"
 	. "streamserver/config"
 	"encoding/hex"
-	"google.golang.org/grpc/reflection"
+	//"google.golang.org/grpc/reflection"
 	. "streamserver/fabric"
 	"strconv"
+//	"os"
+	//"os/signal"
+	//"fmt"
+	//"fmt"
+	//"time"
 )
 
 const (
@@ -144,6 +149,7 @@ func (s *server) DealTransaction(ctx context.Context, in *pb.Transaction) (*pb.M
 }
 
 func (s *server)  QueryAsset(ctx context.Context, in *pb.Asset) (*pb.Asset, error){
+
 	isExist, err := s.db.IsExist(in.Userid)
 	if err != nil {
 		return &pb.Asset{Userid : "query abort", Value: 0}, err
@@ -151,6 +157,7 @@ func (s *server)  QueryAsset(ctx context.Context, in *pb.Asset) (*pb.Asset, erro
 	if isExist == false {
 		return &pb.Asset{Userid : "appid not exist", Value: 0}, err
 	}
+
 	user, err := s.myca.LoadUser(in.Userid)
 	if err != nil || user != nil{
 
@@ -162,9 +169,13 @@ func (s *server)  QueryAsset(ctx context.Context, in *pb.Asset) (*pb.Asset, erro
 	//log.Fatalf("user %s, value %s", in.Userid, value)
 	ivalue,_ := strconv.ParseInt(value, 10, 32)
 	return &pb.Asset{Userid : in.Userid, Value: int32(ivalue)}, nil
+
 }
 
 func main() {
+	//c := make(chan os.Signal, 1)
+	//signal.Notify(c, os.Interrupt, os.Kill)
+
 	myserver.InitServer()
 	listen, err := net.Listen("tcp", serveraddr)
 	if err != nil {
@@ -173,11 +184,14 @@ func main() {
 
 	s := grpc.NewServer()
 	pb.RegisterStreamServerServer(s, &myserver)
-	reflection.Register(s)
+	//reflection.Register(s)
 	if err := s.Serve(listen); err != nil {
 		log.Fatalf("failed to server %v",err)
 	}
+
+	//ss := <-c
 	myserver.UnInitServer()
+		//fmt.Println("Got signal:", ss)
 }
 
 

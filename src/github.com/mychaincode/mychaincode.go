@@ -86,6 +86,7 @@ func (t *SimpleChaincode) Invoke(stub shim.ChaincodeStubInterface) pb.Response {
 	}
 
 	if args[0] == "move" {
+
 		if err := stub.SetEvent("testEvent", []byte("Test Payload")); err != nil {
 			return shim.Error("Unable to set CC event: testEvent. Aborting transaction ...")
 		}
