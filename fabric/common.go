@@ -2,7 +2,6 @@ package fabric
 
 import (
 	"fmt"
-	"strconv"
 	"github.com/hyperledger/fabric-sdk-go/config"
 	"github.com/hyperledger/fabric-sdk-go/fabric-client/events"
 
@@ -11,8 +10,6 @@ import (
 	bccspFactory "github.com/hyperledger/fabric/bccsp/factory"
 	"os"
 	"path"
-	//"time"
-	//"github.com/hyperledger/fabric/core/chaincode/shim"
 	"time"
 )
 
@@ -44,8 +41,6 @@ func GetAdmin(c fabricClient.Client, userOrg string) (fabricClient.User, error) 
 	username := fmt.Sprintf("peer%sAdmin", userOrg)
 	return fcutil.GetPreEnrolledUser(c, keyDir, certDir, username)
 }
-
-
 
 // Initialize reads configuration from file and sets up client, chain and event hub
 func (setup *BaseSetupImpl) Initialize() error {
@@ -156,8 +151,75 @@ func (setup *BaseSetupImpl) InitConfig() error {
 	return nil
 }
 
+func (setup *BaseSetupImpl) GetDeployPath() string {
+	pwd, _ := os.Getwd()
+	return path.Join(pwd, "../")
+}
+
+// start chaincode deal  . deploy chaincode and init
+func (setup *BaseSetupImpl) InitCC(appid string, payload string) error {
+	chainCodePath := "github.com/mychaincode"
+	chainCodeVersion := "v0"
+
+	if err := setup.InstallCC(setup.ChainCodeID, chainCodePath, chainCodeVersion, nil); err != nil {
+		return err
+	}
+
+	var args []string
+	//valueStr := strconv.FormatInt(int64(value), 10)
+	args = append(args, "init")
+	args = append(args, appid)
+	args = append(args, payload)
+	return setup.InstantiateCC(setup.ChainCodeID, setup.ChainID, chainCodePath, chainCodeVersion, args)
+}
+
+func (setup *BaseSetupImpl) InstallCC(chainCodeID string, chainCodePath string, chainCodeVersion string, chaincodePackage []byte) error {
+	if err := fcutil.SendInstallCC(setup.Client, setup.Chain, chainCodeID, chainCodePath, chainCodeVersion, chaincodePackage, setup.Chain.GetPeers(), setup.GetDeployPath()); err != nil {
+		return fmt.Errorf("SendInstallProposal return error: %v", err)
+	}
+	return nil
+}
+
+func (setup *BaseSetupImpl) InstantiateCC(chainCodeID string, chainID string, chainCodePath string, chainCodeVersion string, args []string) error {
+	if err := fcutil.SendInstantiateCC(setup.Chain, chainCodeID, chainID, args, chainCodePath, chainCodeVersion, []fabricClient.Peer{setup.Chain.GetPrimaryPeer()}, setup.EventHub); err != nil {
+		return err
+	}
+	return nil
+}
+// end chaincode deal  . deploy chaincode and init
+
+// Init ...
+func (setup *BaseSetupImpl) InvokeInit(chainID string, chainCodeID string, args []string) (string, error) {
+	transientDataMap := make(map[string][]byte)
+	transientDataMap["result"] = []byte("Transient data in move funds...")
+
+	transactionProposalResponses, txID, err := fcutil.CreateAndSendTransactionProposal(setup.Chain, chainCodeID, chainID, args, []fabricClient.Peer{setup.Chain.GetPrimaryPeer()}, nil)
+	if err != nil {
+		return "", fmt.Errorf("CreateAndSendTransactionProposal return error: %v", err)
+	}
+	// Register for commit event
+	done, fail := fcutil.RegisterTxEvent(txID, setup.EventHub)
+
+	txResponse, err := fcutil.CreateAndSendTransaction(setup.Chain, transactionProposalResponses)
+	if err != nil {
+		return "", fmt.Errorf("CreateAndSendTransaction return error: %v", err)
+	}
+	fmt.Println(txResponse)
+
+	select {
+	case <-done:
+	case <-fail:
+		return "", fmt.Errorf("invoke Error received from eventhub for txid(%s) error(%v)", txID, fail)
+	case <-time.After(time.Second * 30):
+		return "", fmt.Errorf("invoke Didn't receive block event for txid(%s)", txID)
+	}
+
+	return txID, nil
+	//return string(transactionProposalResponses[0].GetResponsePayload()), nil
+}
+
 // Query ...
-func (setup *BaseSetupImpl) Query(chainID string, chainCodeID string, args []string) (string, error) {
+func (setup *BaseSetupImpl) InvokeQuery(chainID string, chainCodeID string, args []string) (string, error) {
 	transactionProposalResponses, _, err := fcutil.CreateAndSendTransactionProposal(setup.Chain, chainCodeID, chainID, args, []fabricClient.Peer{setup.Chain.GetPrimaryPeer()}, nil)
 	if err != nil {
 		return "", fmt.Errorf("CreateAndSendTransactionProposal return error: %v", err)
@@ -165,14 +227,7 @@ func (setup *BaseSetupImpl) Query(chainID string, chainCodeID string, args []str
 	return string(transactionProposalResponses[0].GetResponsePayload()), nil
 }
 
-func (setup *BaseSetupImpl)MoveFunds(appidA string, appidB string, value string) (string, error){
-	var args []string
-	args = append(args, "invoke")
-	args = append(args, "move")
-	args = append(args, appidA)
-	args = append(args, appidB)
-	args = append(args, value)
-
+func (setup *BaseSetupImpl)InvokeTransfer(chainID string, chainCodeID string, args []string) (string, error){
 	transientDataMap := make(map[string][]byte)
 	transientDataMap["result"] = []byte("Transient data in move funds...")
 
@@ -198,47 +253,35 @@ func (setup *BaseSetupImpl)MoveFunds(appidA string, appidB string, value string)
 	}
 
 	return txID, nil
-
-
 }
 
-func (setup *BaseSetupImpl) InstallAndInstantiateExampleCC(appid string, value int32) error {
+func (setup *BaseSetupImpl)InvokeDelete(chainID string, chainCodeID string, args []string) (string, error){
+	transientDataMap := make(map[string][]byte)
+	transientDataMap["result"] = []byte("Transient data in move funds...")
 
-	chainCodePath := "github.com/mychaincode"
-	chainCodeVersion := "v0"
-	if setup.ChainCodeID == "" {
-		setup.ChainCodeID = fcutil.GenerateRandomID()
+	transactionProposalResponse, txID, err := fcutil.CreateAndSendTransactionProposal(setup.Chain, setup.ChainCodeID, setup.ChainID, args, []fabricClient.Peer{setup.Chain.GetPrimaryPeer()}, transientDataMap)
+	if err != nil {
+		return "", fmt.Errorf("CreateAndSendTransactionProposal return error: %v", err)
+	}
+	// Register for commit event
+	done, fail := fcutil.RegisterTxEvent(txID, setup.EventHub)
+
+	txResponse, err := fcutil.CreateAndSendTransaction(setup.Chain, transactionProposalResponse)
+	if err != nil {
+		return "", fmt.Errorf("CreateAndSendTransaction return error: %v", err)
+	}
+	fmt.Println(txResponse)
+
+	select {
+	case <-done:
+	case <-fail:
+		return "", fmt.Errorf("invoke Error received from eventhub for txid(%s) error(%v)", txID, fail)
+	case <-time.After(time.Second * 30):
+		return "", fmt.Errorf("invoke Didn't receive block event for txid(%s)", txID)
 	}
 
-	if err := setup.InstallCC(setup.ChainCodeID, chainCodePath, chainCodeVersion, nil); err != nil {
-		return err
-	}
-
-
-	var args []string
-	valueStr := strconv.FormatInt(int64(value), 10)
-	args = append(args, "init")
-	args = append(args, appid)
-	args = append(args, valueStr)
-
-
-	return setup.InstantiateCC(setup.ChainCodeID, setup.ChainID, chainCodePath, chainCodeVersion, args)
+	return txID, nil
 }
 
-func (setup *BaseSetupImpl) InstallCC(chainCodeID string, chainCodePath string, chainCodeVersion string, chaincodePackage []byte) error {
-	if err := fcutil.SendInstallCC(setup.Client, setup.Chain, chainCodeID, chainCodePath, chainCodeVersion, chaincodePackage, setup.Chain.GetPeers(), setup.GetDeployPath()); err != nil {
-		return fmt.Errorf("SendInstallProposal return error: %v", err)
-	}
-	return nil
-}
 
-func (setup *BaseSetupImpl) InstantiateCC(chainCodeID string, chainID string, chainCodePath string, chainCodeVersion string, args []string) error {
-	if err := fcutil.SendInstantiateCC(setup.Chain, chainCodeID, chainID, args, chainCodePath, chainCodeVersion, []fabricClient.Peer{setup.Chain.GetPrimaryPeer()}, setup.EventHub); err != nil {
-		return err
-	}
-	return nil
-}
-func (setup *BaseSetupImpl) GetDeployPath() string {
-	pwd, _ := os.Getwd()
-	return path.Join(pwd, "../")
-}
+

@@ -47,28 +47,7 @@ func (t *SimpleChaincode) Init(stub shim.ChaincodeStubInterface) pb.Response {
 
 // Query ...
 func (t *SimpleChaincode) Query(stub shim.ChaincodeStubInterface) pb.Response {
-	_, args := stub.GetFunctionAndParameters()
-
-	if len(args) != 1 {
-		return shim.Error("Incorrect number of arguments. Expecting 1")
-	}
-	var A string
-	A = args[0]
-	// Get the state from the ledger
-	Avalbytes, err := stub.GetState(A)
-	if err != nil {
-		jsonResp := "{\"Error\":\"Failed to get state for " + A + "\"}"
-		return shim.Error(jsonResp)
-	}
-
-	if Avalbytes == nil {
-		jsonResp := "{\"Error\":\"Nil amount for " + A + "\"}"
-		return shim.Error(jsonResp)
-	}
-
-	jsonResp := "{\"Name\":\"" + A + "\",\"Amount\":\"" + string(Avalbytes) + "\"}"
-	fmt.Printf("Query Response:%s\n", jsonResp)
-	return shim.Success(Avalbytes)
+	return shim.Error("Unknown supported call")
 }
 
 // Invoke ...
@@ -85,16 +64,16 @@ func (t *SimpleChaincode) Invoke(stub shim.ChaincodeStubInterface) pb.Response {
 		return shim.Error("Incorrect number of arguments. Expecting at least 2")
 	}
 
-	if args[0] == "move" {
+	if args[0] == "transfer" {
 
 		if err := stub.SetEvent("testEvent", []byte("Test Payload")); err != nil {
 			return shim.Error("Unable to set CC event: testEvent. Aborting transaction ...")
 		}
-		return t.move(stub, args)
+		return t.transfer(stub, args)
 	}
 
-	if args[0] == "init" {
-		return t.init(stub, args)
+	if args[0] == "initins" {
+		return t.initins(stub, args)
 	}
 
 	if args[0] == "delete" {
@@ -110,7 +89,7 @@ func (t *SimpleChaincode) Invoke(stub shim.ChaincodeStubInterface) pb.Response {
 	return shim.Error("Unknown action, check the first argument, must be one of 'delete', 'query', or 'move'")
 }
 
-func (t *SimpleChaincode) move(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+func (t *SimpleChaincode) transfer(stub shim.ChaincodeStubInterface, args []string) pb.Response {
 	// must be an invoke
 	var A, B string    // Entities
 	var Aval, Bval int64 // Asset holdings
@@ -199,7 +178,7 @@ func (t *SimpleChaincode) delete(stub shim.ChaincodeStubInterface, args []string
 	return shim.Success(nil)
 }
 
-func (t *SimpleChaincode) init(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+func (t *SimpleChaincode) initins(stub shim.ChaincodeStubInterface, args []string) pb.Response {
 	if len(args) != 2{
 		return shim.Error("Incorrect number of arguments. Expecting 1")
 	}

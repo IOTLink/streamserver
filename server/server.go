@@ -11,12 +11,7 @@ import (
 	"encoding/hex"
 	//"google.golang.org/grpc/reflection"
 	. "streamserver/fabric"
-	"strconv"
-//	"os"
-	//"os/signal"
-	//"fmt"
-	//"fmt"
-	//"time"
+	"google.golang.org/grpc/reflection"
 )
 
 const (
@@ -52,17 +47,21 @@ func (s *server) UnInitServer() {
 	s.db.UnRegisterDB()
 }
 
-func (s *server) RegisterClient(ctx context.Context, in *pb.RegisterReq) (*pb.RegisterReply, error) {
+func (s *server) RegisterClient(ctx context.Context, in *pb.RegisterRequest) (*pb.RegisterReply, error) {
 	isExist := true
 	var err error
 	if in.User != s.AuthUser && in.Pwd != s.AuthPwd {
-		return &pb.RegisterReply{Message:"login user or password is abort", Info: nil}, nil
+		return &pb.RegisterReply{Message:"login user or password is incorrect", Appid:"", Appkey:""}, nil
+	}
+
+	if in.Chainid == "" {
+		return &pb.RegisterReply{Message:"chainid can not be empty", Appid:"", Appkey:""}, nil
 	}
 
 	appid := GetAppId()
 	appkey := GetAppKey()
 	if appid == nil || appkey == nil {
-		return &pb.RegisterReply{Message:"appid or appkey break abort", Info: nil}, nil
+		return &pb.RegisterReply{Message:"generate appid or appkey error",  Appid:"", Appkey:""}, nil
 	}
 
 	for {
@@ -70,7 +69,7 @@ func (s *server) RegisterClient(ctx context.Context, in *pb.RegisterReq) (*pb.Re
 			isExist, err = s.db.IsExist(hex.EncodeToString(appid[:]))
 		}
 		if err != nil {
-			return &pb.RegisterReply{Message:"query appid abort", Info: nil}, err
+			return &pb.RegisterReply{Message:"query appid exception"}, err
 		}
 		if isExist == true {
 			appid = GetAppId()
@@ -83,115 +82,163 @@ func (s *server) RegisterClient(ctx context.Context, in *pb.RegisterReq) (*pb.Re
 	dayTimes := GetUTCTimeStr()
 	_, err = s.db.InsertAppInfo(hex.EncodeToString(appid[:]), hex.EncodeToString(appkey[:]), dayTimes)
 	if err != nil {
-		return &pb.RegisterReply{Message:"insert appid and appkey abort", Info: nil}, err
+		return &pb.RegisterReply{Message:"insert appid and appkey failed", Appid:"", Appkey:""}, err
 	}
 	err = s.myca.RegisterAndEnrollUser(hex.EncodeToString(appid[:]), hex.EncodeToString(appkey[:]))
 	if err != nil {
-		return &pb.RegisterReply{Message:"request ca ecert abort", Info: nil}, err
+		return &pb.RegisterReply{Message:"registering user to ca-server failed", Appid:"", Appkey:""}, err
 	}
-	appInfo := &pb.RegisterInfo{Appid : hex.EncodeToString(appid[:]), Appkey: hex.EncodeToString(appkey[:])}
-	return &pb.RegisterReply{Message : "OK", Info : appInfo},nil
+	return &pb.RegisterReply{Message : "OK",  Appid:hex.EncodeToString(appid[:]), Appkey:hex.EncodeToString(appkey[:])}, nil
 }
 
-func (s *server) InitAsset(ctx context.Context, in *pb.Asset) (*pb.MsgReply, error) {
-	isExist, err := s.db.IsExist(in.Userid)
-	if err != nil {
-		return &pb.MsgReply{Message : "query dbase abort!"}, err
+func (s *server) EnrollAsset(ctx context.Context, in *pb.AssetEnroll) (*pb.ResultsReply, error) {
+	if in.Chainid == "" || in.Chaincodeid == "" {
+		return &pb.ResultsReply{Message:"chainid or chaincodeid can not be empty", Payload:""}, nil
 	}
-	if isExist == false {
-		return &pb.MsgReply{Message : "appid is not exist!"}, err
+	if in.Appid == "" {
+		return &pb.ResultsReply{Message:"appid can not be empty", Payload:""}, nil
+	}
+	if in.Payload == "" {
+		return &pb.ResultsReply{Message:"payload can not be empty", Payload:""}, nil
 	}
 
-	user, err := s.myca.LoadUser(in.Userid)
+	isExist, err := s.db.IsExist(in.Appid)
+	if err != nil {
+		return &pb.ResultsReply{Message : "query database exception", Payload:""}, err
+	}
+	if isExist == false {
+		return &pb.ResultsReply{Message : "appid does not exist", Payload:""}, err
+	}
+
+	user, err := s.myca.LoadUser(in.Appid)
 	if err != nil || user != nil{
 
 	}
 
-	err = s.fabric.Invoke(in.Userid, in.Value)
+	err = s.fabric.InitAsset(in.Appid, in.Payload)
 	if err != nil {
-		return &pb.MsgReply{Message : "Failt"}, err
+		return &pb.ResultsReply{Message : "execution func enrollasset failed", Payload:""}, err
 	}
 
-	return &pb.MsgReply{Message : "OK"}, nil
+	return &pb.ResultsReply{Message : "OK", Payload:""}, nil
 }
 
-func (s *server) DealTransaction(ctx context.Context, in *pb.Transaction) (*pb.MsgReply, error){
-	isExist1, err1 := s.db.IsExist(in.Ownerid)
+func (s *server) RegisterAsset(ctx context.Context, in *pb.AssetRegister) (*pb.ResultsReply, error) {
+	if in.Chainid == "" || in.Chaincodeid == "" {
+		return &pb.ResultsReply{Message:"chainid or chaincodeid can not be empty", Payload:""}, nil
+	}
+	if in.Appid == "" {
+		return &pb.ResultsReply{Message:"appid can not be empty", Payload:""}, nil
+	}
+	if in.Payload == "" {
+		return &pb.ResultsReply{Message:"payload can not be empty", Payload:""}, nil
+	}
+
+	isExist, err := s.db.IsExist(in.Appid)
+	if err != nil {
+		return &pb.ResultsReply{Message : "query database exception", Payload:""}, err
+	}
+	if isExist == false {
+		return &pb.ResultsReply{Message : "appid does not exist", Payload:""}, err
+	}
+
+	user, err := s.myca.LoadUser(in.Appid)
+	if err != nil || user != nil{
+
+	}
+
+	txID, err := s.fabric.Init2Asset(in.Appid, in.Payload)
+	if err != nil {
+		return &pb.ResultsReply{Message : "execution func enrollasset failed", Payload:""}, err
+	}
+	return &pb.ResultsReply{Message : "OK", Payload : txID}, nil
+}
+
+
+func (s *server) TransactionAsset(ctx context.Context, in *pb.TransactionRequest) (*pb.ResultsReply, error){
+	if in.Chainid == "" || in.Chaincodeid == "" {
+		return &pb.ResultsReply{Message:"chainid or chaincodeid can not be empty", Payload:""}, nil
+	}
+	if in.Appidower == "" || in.Appidreceive == ""{
+		return &pb.ResultsReply{Message:"appidower or appidreceive can not be empty", Payload:""}, nil
+	}
+	if in.Payload == "" {
+		return &pb.ResultsReply{Message:"payload can not be empty", Payload:""}, nil
+	}
+
+	isExist1, err1 := s.db.IsExist(in.Appidower)
 	if err1 != nil {
-		return &pb.MsgReply{Message : "query dbase abort!"}, err1
+		return &pb.ResultsReply{Message : "query database exception", Payload:""}, err1
 	}
 	if isExist1 == false {
-		return &pb.MsgReply{Message : "appid is not exist!"}, err1
+		return &pb.ResultsReply{Message : "appid does not exist", Payload:""}, err1
 	}
 
-	isExist2, err2 := s.db.IsExist(in.Receiverid)
+	isExist2, err2 := s.db.IsExist(in.Appidreceive)
 	if err2 != nil {
-		return &pb.MsgReply{Message : "query dbase abort!"}, err2
+		return &pb.ResultsReply{Message : "query database exception", Payload:""}, err2
 	}
 	if isExist2 == false {
-		return &pb.MsgReply{Message : "appid is not exist!"}, err2
+		return &pb.ResultsReply{Message : "appid does not exist", Payload:""}, err2
 	}
 
-	user1, err1 := s.myca.LoadUser(in.Ownerid)
+	user1, err1 := s.myca.LoadUser(in.Appidower)
 	if err1 != nil || user1 != nil{
 
 	}
-	user2, err2 := s.myca.LoadUser(in.Receiverid)
+	user2, err2 := s.myca.LoadUser(in.Appidreceive)
 	if err2 != nil || user2 != nil{
 
 	}
-	txId, err := s.fabric.Move(in.Ownerid, in.Receiverid, Itoa(in.Value))
+	txId, err := s.fabric.Transfer(in.Appidower, in.Appidreceive, in.Payload)
 	if err != nil {
-		return &pb.MsgReply{Message : "tx is failt"}, err
+		return &pb.ResultsReply{Message : "transaction execution failed", Payload:""}, err
 	}
 
-	return &pb.MsgReply{Message : txId}, nil
+	return &pb.ResultsReply{Message:"OK" , Payload:txId}, nil
 }
 
-func (s *server)  QueryAsset(ctx context.Context, in *pb.Asset) (*pb.Asset, error){
+func (s *server)  QueryAsset(ctx context.Context, in *pb.QueryRequest) (*pb.ResultsReply, error){
+	if in.Chainid == "" || in.Chaincodeid == "" {
+		return &pb.ResultsReply{Message:"chainid or chaincodeid can not be empty", Payload:""}, nil
+	}
 
-	isExist, err := s.db.IsExist(in.Userid)
+	isExist, err := s.db.IsExist(in.Appid)
 	if err != nil {
-		return &pb.Asset{Userid : "query abort", Value: 0}, err
+		return &pb.ResultsReply{Message : "query database exception", Payload:""}, err
 	}
 	if isExist == false {
-		return &pb.Asset{Userid : "appid not exist", Value: 0}, err
+		return &pb.ResultsReply{Message : "appid does not exist", Payload:""}, err
 	}
 
-	user, err := s.myca.LoadUser(in.Userid)
+	user, err := s.myca.LoadUser(in.Appid)
 	if err != nil || user != nil{
 
 	}
-	value, err := s.fabric.Query(in.Userid)
+	value, err := s.fabric.Query(in.Appid)
 	if err != nil {
-		return &pb.Asset{Userid : "query failt", Value: 0}, err
+		return &pb.ResultsReply{Message : "query appid exception", Payload:""}, err
 	}
-	//log.Fatalf("user %s, value %s", in.Userid, value)
-	ivalue,_ := strconv.ParseInt(value, 10, 32)
-	return &pb.Asset{Userid : in.Userid, Value: int32(ivalue)}, nil
 
+	return &pb.ResultsReply{Message : value}, nil
 }
 
 func main() {
-	//c := make(chan os.Signal, 1)
-	//signal.Notify(c, os.Interrupt, os.Kill)
-
 	myserver.InitServer()
 	listen, err := net.Listen("tcp", serveraddr)
 	if err != nil {
-		log.Fatalf("failed to listen %v\n",err)
+		log.Fatalf("server exec listen failed %v\n",err)
 	}
 
 	s := grpc.NewServer()
 	pb.RegisterStreamServerServer(s, &myserver)
-	//reflection.Register(s)
+
+	reflection.Register(s)
 	if err := s.Serve(listen); err != nil {
-		log.Fatalf("failed to server %v",err)
+		log.Fatalf("start service failed %v",err)
 	}
 
-	//ss := <-c
 	myserver.UnInitServer()
-		//fmt.Println("Got signal:", ss)
 }
 
 

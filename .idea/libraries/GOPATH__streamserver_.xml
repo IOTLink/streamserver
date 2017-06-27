@@ -1,0 +1,29 @@
+<component name="libraryTable">
+  <library name="GOPATH &lt;streamserver&gt;">
+    <CLASSES>
+      <root url="file://$PROJECT_DIR$/../golang.org" />
+      <root url="file://$PROJECT_DIR$/../gopkg.in" />
+      <root url="file://$PROJECT_DIR$/../github.com" />
+      <root url="file://$PROJECT_DIR$/../google.golang.org" />
+      <root url="file://$PROJECT_DIR$/../OAuthServer" />
+      <root url="file://$PROJECT_DIR$/../http-server" />
+      <root url="file://$PROJECT_DIR$/../ssl-server" />
+      <root url="file://$PROJECT_DIR$/../apiFabric" />
+      <root url="file://$PROJECT_DIR$/../streamserver.old" />
+    </CLASSES>
+    <SOURCES>
+      <root url="file://$PROJECT_DIR$/../golang.org" />
+      <root url="file://$PROJECT_DIR$/../gopkg.in" />
+      <root url="file://$PROJECT_DIR$/../github.com" />
+      <root url="file://$PROJECT_DIR$/../google.golang.org" />
+      <root url="file://$PROJECT_DIR$/../OAuthServer" />
+      <root url="file://$PROJECT_DIR$/../http-server" />
+      <root url="file://$PROJECT_DIR$/../ssl-server" />
+      <root url="file://$PROJECT_DIR$/../apiFabric" />
+      <root url="file://$PROJECT_DIR$/../streamserver.old" />
+    </SOURCES>
+    <excluded>
+      <root url="file://$PROJECT_DIR$" />
+    </excluded>
+  </library>
+</component>
