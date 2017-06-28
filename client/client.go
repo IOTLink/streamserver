@@ -38,7 +38,7 @@ func main() {
 	//Asset
 	/*
 	assetInfo := &pb.AssetEnroll{Chainid: "mychannel", Chaincodeid:"mychaincodev5",
-		Appid:"8cb762719e61b46c12b5c577e1c38a23", Payload:"100"}
+		Appid:"2d89b1ba0f869c49f4dbcee15c766c5d", Payload:"100"}
 	msgReply2, err := client.EnrollAsset(context.Background(), assetInfo)
 	if err != nil {
 		log.Fatalf("msg:%s,%v",msgReply2.Message, err)
@@ -46,15 +46,15 @@ func main() {
 	if msgReply2 != nil {
 		info, _ := json.Marshal(msgReply2)
 		log.Printf("EnrollAsset: %s", info)
-	}
-	*/
+	}*/
+
 
 	//return
 	//DealTransaction
 	start := time.Now()
 	transactionInfo := &pb.TransactionRequest{Chainid: "mychannel", Chaincodeid:"mychaincodev5",
-		Appidower:"8cb762719e61b46c12b5c577e1c38a23",
-		Appidreceive:"f3b963027c222befd7c4add981174468",
+		Appidower:"2d89b1ba0f869c49f4dbcee15c766c5d",
+		Appidreceive:"5e9761ccc2f59df2dc4f42173486c627",
 		Payload : "10"}
 	msgReply3,err := client.TransactionAsset(context.Background(), transactionInfo)
 	if err != nil {
@@ -68,7 +68,7 @@ func main() {
 
 	start = time.Now()
 	queryInfo1 := &pb.QueryRequest{Chainid: "mychannel", Chaincodeid:"mychaincodev5",
-		Appid:"8cb762719e61b46c12b5c577e1c38a23"}
+		Appid:"2d89b1ba0f869c49f4dbcee15c766c5d"}
 	msgReply4, err := client.QueryAsset(context.Background(), queryInfo1)
 	if err != nil {
 		log.Fatalf("msg:%v", err)
@@ -82,7 +82,7 @@ func main() {
 
 	start = time.Now()
 	queryInfo2 := &pb.QueryRequest{Chainid: "mychannel", Chaincodeid:"mychaincodev5",
-		Appid:"f3b963027c222befd7c4add981174468"}
+		Appid:"5e9761ccc2f59df2dc4f42173486c627"}
 	msgReply5, err := client.QueryAsset(context.Background(), queryInfo2)
 	if err != nil {
 		log.Fatalf("msg:%v", err)

@@ -136,10 +136,11 @@ func CreateAndJoinChannel(client fabricClient.Client, ordererUser fabricClient.U
 		if err := chain.Initialize(nil); err != nil {
 			return fmt.Errorf("Error initializing chain: %v", err)
 		}
+		fmt.Printf("==================== %s chainnel inited =================\n",chain.GetName() )
 		return nil
 	}
 
-	logger.Infof("***** Creating and Joining channel: %s *****\n", chain.GetName())
+	logger.Infof("***** ======== Creating and Joining channel: %s ***** ==========\n", chain.GetName())
 
 	configTx, err := ioutil.ReadFile(channelConfig)
 	if err != nil {

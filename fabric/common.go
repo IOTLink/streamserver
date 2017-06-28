@@ -42,6 +42,11 @@ func GetAdmin(c fabricClient.Client, userOrg string) (fabricClient.User, error) 
 	return fcutil.GetPreEnrolledUser(c, keyDir, certDir, username)
 }
 
+//GetUser
+func GetUser(c fabricClient.Client, name string, pwd string) (fabricClient.User, error) {
+	return fcutil.GetMember(c, name, pwd)
+}
+
 // Initialize reads configuration from file and sets up client, chain and event hub
 func (setup *BaseSetupImpl) Initialize() error {
 
@@ -82,11 +87,10 @@ func (setup *BaseSetupImpl) Initialize() error {
 
 	}
 	// Create and join channel
-	/*
+
 	if err := fcutil.CreateAndJoinChannel(client, ordererAdmin, org1Admin, chain, setup.ChannelConfig); err != nil {
 		return fmt.Errorf("CreateAndJoinChannel return error: %v", err)
 	}
-	*/
 
 	client.SetUserContext(org1Admin)
 
@@ -160,6 +164,7 @@ func (setup *BaseSetupImpl) GetDeployPath() string {
 func (setup *BaseSetupImpl) InitCC(appid string, payload string) error {
 	chainCodePath := "github.com/mychaincode"
 	chainCodeVersion := "v0"
+
 
 	if err := setup.InstallCC(setup.ChainCodeID, chainCodePath, chainCodeVersion, nil); err != nil {
 		return err

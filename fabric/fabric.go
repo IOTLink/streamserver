@@ -2,6 +2,8 @@ package fabric
 
 import (
 	"log"
+	//fcutil "github.com/hyperledger/fabric-sdk-go/fabric-client/util"
+	//fabricClient "github.com/hyperledger/fabric-sdk-go/fabric-client"
 )
 
 type FabricServer struct {
@@ -37,6 +39,12 @@ func (fabric *FabricServer)InitAsset(appid string, payload string) error{
 	}
 	fabric.setup = testSetup
 	*/
+	user, err := GetUser(fabric.setup.Client, appid, "")
+	if err != nil {
+
+	}
+	fabric.setup.Client.SetUserContext(user)
+
 	if err := fabric.setup.InitCC(appid, payload); err != nil {
 		log.Fatalf("InstallAndInstantiateExampleCC return error: %v", err)
 		return err
@@ -45,6 +53,12 @@ func (fabric *FabricServer)InitAsset(appid string, payload string) error{
 }
 
 func (fabric *FabricServer)Init2Asset(appid string, payload string) (string,error){
+	user, err := GetUser(fabric.setup.Client, appid, "")
+	if err != nil {
+
+	}
+	fabric.setup.Client.SetUserContext(user)
+
 	var args []string
 	args = append(args, "invoke")
 	args = append(args, "initins")
@@ -55,6 +69,12 @@ func (fabric *FabricServer)Init2Asset(appid string, payload string) (string,erro
 }
 
 func (fabric *FabricServer)Query(appid string) (string, error){
+	user, err := GetUser(fabric.setup.Client, appid, "")
+	if err != nil {
+
+	}
+	fabric.setup.Client.SetUserContext(user)
+
 	var args []string
 	args = append(args, "invoke")
 	args = append(args, "query")
@@ -65,7 +85,11 @@ func (fabric *FabricServer)Query(appid string) (string, error){
 
 
 func (fabric *FabricServer)Transfer(appidA string, appidB string, value string) (string, error) {
+	user, err := GetUser(fabric.setup.Client, appidA, "")
+	if err != nil {
 
+	}
+	fabric.setup.Client.SetUserContext(user)
 	//eventID := "test([a-zA-Z]+)"
 	//done, rce := util.RegisterCCEvent(fabric.setup.ChainCodeID, eventID, fabric.setup.EventHub)
 	var args []string
@@ -93,6 +117,12 @@ func (fabric *FabricServer)Transfer(appidA string, appidB string, value string) 
 
 
 func (fabric *FabricServer)Delete(appid string) (string,error){
+	user, err := GetUser(fabric.setup.Client, appid, "")
+	if err != nil {
+
+	}
+	fabric.setup.Client.SetUserContext(user)
+
 	var args []string
 	args = append(args, "invoke")
 	args = append(args, "delete")
