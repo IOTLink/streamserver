@@ -46,7 +46,7 @@ func (fabric *FabricServer)InitAsset(appid string, payload string) error{
 	fabric.setup.Client.SetUserContext(user)
 
 	if err := fabric.setup.InitCC(appid, payload); err != nil {
-		log.Fatalf("InstallAndInstantiateExampleCC return error: %v", err)
+		log.Println("InstallAndInstantiateExampleCC return error: %v", err)
 		return err
 	}
 	return nil
@@ -100,7 +100,8 @@ func (fabric *FabricServer)Transfer(appidA string, appidB string, value string) 
 	args = append(args, value)
 	txId, err := fabric.setup.InvokeTransfer(fabric.setup.ChainID, fabric.setup.ChainCodeID, args)
 	if err != nil {
-		log.Fatalf("Move funds return error: %v", err)
+		//log.Fatalf("Move funds return error: %v", err)
+		log.Println("Move funds return error: %v", err)
 	}
 
 	/*
