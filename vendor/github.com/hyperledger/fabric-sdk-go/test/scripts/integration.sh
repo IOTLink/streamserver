@@ -5,14 +5,21 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+# Environment variables that affect this script:
+# USE_PREBUILT_IMAGES: Integration tests are run against fabric docker images. 
+#   Can be latest tagged (FALSE) or tags specified in .env (default).
+# ARCH: Fabric docker images architecture.
+#   If not set, ARCH defaults to the value specified in .env.
+# GOTESTFLAGS: Flags are added to the go test command.
+# LDFLAGS: Flags are added to the go test command (example: -ldflags=-s).
+
 # Packages to include in test run
 PKGS=`go list github.com/hyperledger/fabric-sdk-go/test/integration/... 2> /dev/null | \
                                                   grep -v /vendor/`
 
-# Detect Hyperledger CI environment
-if [ "$JENKINS_URL" == "https://jenkins.hyperledger.org/" ] && [ "$USE_PREBUILT_IMAGES" == true ]
+if [ "$USE_PREBUILT_IMAGES" == false ]
 then
-  echo "In Hyperledger CI - Setting docker integration fixture tags to latest and using pre-built images..."
+  echo "Setting docker integration fixture tags to latest..."
   source ./test/fixtures/latest-env.sh
 fi
 
@@ -21,7 +28,7 @@ cd ./test/fixtures && docker-compose up --force-recreate -d
 
 echo "Running integration tests..."
 cd ../../
-gocov test $PKGS -p 1 -timeout=10m | gocov-xml > integration-report.xml
+gocov test $GOTESTFLAGS $LDFLAGS $PKGS -p 1 -timeout=10m | gocov-xml > integration-report.xml
 
 if [ $? -eq 0 ]
 then

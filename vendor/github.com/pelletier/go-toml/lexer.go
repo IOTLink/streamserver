@@ -6,7 +6,6 @@
 package toml
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -25,7 +24,7 @@ type tomlLexStateFn func() tomlLexStateFn
 // Define lexer
 type tomlLexer struct {
 	input         *buffruneio.Reader // Textual source
-	buffer        bytes.Buffer       // Runes composing the current token
+	buffer        []rune             // Runes composing the current token
 	tokens        chan token
 	depth         int
 	line          int
@@ -37,7 +36,7 @@ type tomlLexer struct {
 // Basic read operations on input
 
 func (l *tomlLexer) read() rune {
-	r, _, err := l.input.ReadRune()
+	r, err := l.input.ReadRune()
 	if err != nil {
 		panic(err)
 	}
@@ -54,13 +53,13 @@ func (l *tomlLexer) next() rune {
 	r := l.read()
 
 	if r != eof {
-		l.buffer.WriteRune(r)
+		l.buffer = append(l.buffer, r)
 	}
 	return r
 }
 
 func (l *tomlLexer) ignore() {
-	l.buffer.Reset()
+	l.buffer = make([]rune, 0)
 	l.line = l.endbufferLine
 	l.col = l.endbufferCol
 }
@@ -86,11 +85,11 @@ func (l *tomlLexer) emitWithValue(t tokenType, value string) {
 }
 
 func (l *tomlLexer) emit(t tokenType) {
-	l.emitWithValue(t, l.buffer.String())
+	l.emitWithValue(t, string(l.buffer))
 }
 
 func (l *tomlLexer) peek() rune {
-	r, _, err := l.input.ReadRune()
+	r, err := l.input.ReadRune()
 	if err != nil {
 		panic(err)
 	}
@@ -100,7 +99,7 @@ func (l *tomlLexer) peek() rune {
 
 func (l *tomlLexer) follow(next string) bool {
 	for _, expectedRune := range next {
-		r, _, err := l.input.ReadRune()
+		r, err := l.input.ReadRune()
 		defer l.input.UnreadRune()
 		if err != nil {
 			panic(err)
@@ -130,9 +129,9 @@ func (l *tomlLexer) lexVoid() tomlLexStateFn {
 		next := l.peek()
 		switch next {
 		case '[':
-			return l.lexTableKey
+			return l.lexKeyGroup
 		case '#':
-			return l.lexComment(l.lexVoid)
+			return l.lexComment
 		case '=':
 			return l.lexEqual
 		case '\r':
@@ -183,7 +182,7 @@ func (l *tomlLexer) lexRvalue() tomlLexStateFn {
 		case '}':
 			return l.lexRightCurlyBrace
 		case '#':
-			return l.lexComment(l.lexRvalue)
+			return l.lexComment
 		case '"':
 			return l.lexString
 		case '\'':
@@ -220,7 +219,7 @@ func (l *tomlLexer) lexRvalue() tomlLexStateFn {
 			break
 		}
 
-		possibleDate := string(l.input.PeekRunes(35))
+		possibleDate := string(l.input.Peek(35))
 		dateMatch := dateRegexp.FindString(possibleDate)
 		if dateMatch != "" {
 			l.fastForward(len(dateMatch))
@@ -310,17 +309,15 @@ func (l *tomlLexer) lexKey() tomlLexStateFn {
 	return l.lexVoid
 }
 
-func (l *tomlLexer) lexComment(previousState tomlLexStateFn) tomlLexStateFn {
-	return func() tomlLexStateFn {
-		for next := l.peek(); next != '\n' && next != eof; next = l.peek() {
-			if next == '\r' && l.follow("\r\n") {
-				break
-			}
-			l.next()
+func (l *tomlLexer) lexComment() tomlLexStateFn {
+	for next := l.peek(); next != '\n' && next != eof; next = l.peek() {
+		if next == '\r' && l.follow("\r\n") {
+			break
 		}
-		l.ignore()
-		return previousState
+		l.next()
 	}
+	l.ignore()
+	return l.lexVoid
 }
 
 func (l *tomlLexer) lexLeftBracket() tomlLexStateFn {
@@ -519,25 +516,25 @@ func (l *tomlLexer) lexString() tomlLexStateFn {
 	return l.lexRvalue
 }
 
-func (l *tomlLexer) lexTableKey() tomlLexStateFn {
+func (l *tomlLexer) lexKeyGroup() tomlLexStateFn {
 	l.next()
 
 	if l.peek() == '[' {
-		// token '[[' signifies an array of tables
+		// token '[[' signifies an array of anonymous key groups
 		l.next()
 		l.emit(tokenDoubleLeftBracket)
-		return l.lexInsideTableArrayKey
+		return l.lexInsideKeyGroupArray
 	}
-	// vanilla table key
+	// vanilla key group
 	l.emit(tokenLeftBracket)
-	return l.lexInsideTableKey
+	return l.lexInsideKeyGroup
 }
 
-func (l *tomlLexer) lexInsideTableArrayKey() tomlLexStateFn {
+func (l *tomlLexer) lexInsideKeyGroupArray() tomlLexStateFn {
 	for r := l.peek(); r != eof; r = l.peek() {
 		switch r {
 		case ']':
-			if l.buffer.Len() > 0 {
+			if len(l.buffer) > 0 {
 				l.emit(tokenKeyGroupArray)
 			}
 			l.next()
@@ -548,31 +545,31 @@ func (l *tomlLexer) lexInsideTableArrayKey() tomlLexStateFn {
 			l.emit(tokenDoubleRightBracket)
 			return l.lexVoid
 		case '[':
-			return l.errorf("table array key cannot contain ']'")
+			return l.errorf("group name cannot contain ']'")
 		default:
 			l.next()
 		}
 	}
-	return l.errorf("unclosed table array key")
+	return l.errorf("unclosed key group array")
 }
 
-func (l *tomlLexer) lexInsideTableKey() tomlLexStateFn {
+func (l *tomlLexer) lexInsideKeyGroup() tomlLexStateFn {
 	for r := l.peek(); r != eof; r = l.peek() {
 		switch r {
 		case ']':
-			if l.buffer.Len() > 0 {
+			if len(l.buffer) > 0 {
 				l.emit(tokenKeyGroup)
 			}
 			l.next()
 			l.emit(tokenRightBracket)
 			return l.lexVoid
 		case '[':
-			return l.errorf("table key cannot contain ']'")
+			return l.errorf("group name cannot contain ']'")
 		default:
 			l.next()
 		}
 	}
-	return l.errorf("unclosed table key")
+	return l.errorf("unclosed key group")
 }
 
 func (l *tomlLexer) lexRightBracket() tomlLexStateFn {

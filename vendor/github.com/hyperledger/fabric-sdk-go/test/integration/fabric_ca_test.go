@@ -12,29 +12,59 @@ import (
 	"encoding/pem"
 	"fmt"
 	"math/rand"
+	"os"
 	"strconv"
 	"testing"
 	"time"
 
-	config "github.com/hyperledger/fabric-sdk-go/config"
-	fabricClient "github.com/hyperledger/fabric-sdk-go/fabric-client"
-	kvs "github.com/hyperledger/fabric-sdk-go/fabric-client/keyvaluestore"
+	ca "github.com/hyperledger/fabric-sdk-go/api/apifabca"
+
+	config "github.com/hyperledger/fabric-sdk-go/api/apiconfig"
+
+	client "github.com/hyperledger/fabric-sdk-go/pkg/fabric-client"
+	"github.com/hyperledger/fabric-sdk-go/pkg/fabric-client/identity"
+	kvs "github.com/hyperledger/fabric-sdk-go/pkg/fabric-client/keyvaluestore"
 	bccspFactory "github.com/hyperledger/fabric/bccsp/factory"
 
-	fabricCAClient "github.com/hyperledger/fabric-sdk-go/fabric-ca-client"
+	fabricCAClient "github.com/hyperledger/fabric-sdk-go/pkg/fabric-ca-client"
 )
 
-// This test loads/enrols an admin user
-// Using the admin, it registers, enrols, and revokes a test user
-func TestRegisterEnrollRevoke(t *testing.T) {
+var org1Name = "peerorg1"
+var org2Name = "peerorg2"
+var testFabricCAConfig config.Config
+
+func TestMain(m *testing.M) {
+	var err error
+
 	testSetup := BaseSetupImpl{
 		ConfigFile: "../fixtures/config/config_test.yaml",
 	}
 
-	testSetup.InitConfig()
-	client := fabricClient.NewClient()
+	testFabricCAConfig, err = testSetup.InitConfig()
+	if err != nil {
+		fmt.Printf("Failed InitConfig [%s]\n", err)
+		os.Exit(1)
+	}
 
-	err := bccspFactory.InitFactories(config.GetCSPConfig())
+	os.Exit(m.Run())
+}
+
+// This test loads/enrols an admin user
+// Using the admin, it registers, enrols, and revokes a test user
+func TestRegisterEnrollRevoke(t *testing.T) {
+	mspID, err := testFabricCAConfig.MspID(org1Name)
+	if err != nil {
+		t.Fatalf("GetMspId() returned error: %v", err)
+	}
+
+	caConfig, err := testFabricCAConfig.CAConfig(org1Name)
+	if err != nil {
+		t.Fatalf("GetCAConfig returned error: %s", err)
+	}
+
+	client := client.NewClient(testFabricCAConfig)
+
+	err = bccspFactory.InitFactories(testFabricCAConfig.CSPConfig())
 	if err != nil {
 		t.Fatalf("Failed getting ephemeral software-based BCCSP [%s]", err)
 	}
@@ -48,7 +78,7 @@ func TestRegisterEnrollRevoke(t *testing.T) {
 	}
 	client.SetStateStore(stateStore)
 
-	caClient, err := fabricCAClient.NewFabricCAClient()
+	caClient, err := fabricCAClient.NewFabricCAClient(testFabricCAConfig, org1Name)
 	if err != nil {
 		t.Fatalf("NewFabricCAClient return error: %v", err)
 	}
@@ -83,10 +113,10 @@ func TestRegisterEnrollRevoke(t *testing.T) {
 		if cert509.Subject.CommonName != "admin" {
 			t.Fatalf("CommonName in x509 cert is not the enrollmentID")
 		}
-		adminUser = fabricClient.NewUser("admin")
-		adminUser.SetPrivateKey(key)
-		adminUser.SetEnrollmentCertificate(cert)
-		err = client.SaveUserToStateStore(adminUser, false)
+		adminUser2 := identity.NewUser("admin", mspID)
+		adminUser2.SetPrivateKey(key)
+		adminUser2.SetEnrollmentCertificate(cert)
+		err = client.SaveUserToStateStore(adminUser2, false)
 		if err != nil {
 			t.Fatalf("client.SaveUserToStateStore return error: %v", err)
 		}
@@ -101,11 +131,11 @@ func TestRegisterEnrollRevoke(t *testing.T) {
 
 	// Register a random user
 	userName := createRandomName()
-	registerRequest := fabricCAClient.RegistrationRequest{
+	registerRequest := ca.RegistrationRequest{
 		Name:        userName,
 		Type:        "user",
 		Affiliation: "org1.department1",
-		CAName:      config.GetFabricCAName(),
+		CAName:      caConfig.Name,
 	}
 	enrolmentSecret, err := caClient.Register(adminUser, &registerRequest)
 	if err != nil {
@@ -120,7 +150,7 @@ func TestRegisterEnrollRevoke(t *testing.T) {
 	//re-enroll
 	fmt.Printf("** Attempt to re-enrolled user:  '%s'\n", userName)
 	//create new user object and set certificate and private key of the previously enrolled user
-	enrolleduser := fabricClient.NewUser(userName)
+	enrolleduser := identity.NewUser(userName, mspID)
 	enrolleduser.SetEnrollmentCertificate(ecert)
 	enrolleduser.SetPrivateKey(ekey)
 	//reenroll
@@ -133,12 +163,30 @@ func TestRegisterEnrollRevoke(t *testing.T) {
 		t.Fatalf("Error Reenroling user. Enrollmet and Reenrollment certificates are the same.")
 	}
 
-	revokeRequest := fabricCAClient.RevocationRequest{Name: userName, CAName: "ca-org1"}
+	revokeRequest := ca.RevocationRequest{Name: userName, CAName: "ca-org1"}
 	err = caClient.Revoke(adminUser, &revokeRequest)
 	if err != nil {
 		t.Fatalf("Error from Revoke: %s", err)
 	}
 
+}
+
+func TestEnrolOrg2(t *testing.T) {
+	caClient, err := fabricCAClient.NewFabricCAClient(testFabricCAConfig, org2Name)
+	if err != nil {
+		t.Fatalf("NewFabricCAClient return error: %v", err)
+	}
+
+	key, cert, err := caClient.Enroll("admin", "adminpw")
+	if err != nil {
+		t.Fatalf("Enroll returned error: %v", err)
+	}
+	if key == nil {
+		t.Fatalf("Expected enrol to return a private key")
+	}
+	if cert == nil {
+		t.Fatalf("Expected enrol to return an enrolment cert")
+	}
 }
 
 func createRandomName() string {

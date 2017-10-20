@@ -9,13 +9,13 @@ package integration
 import (
 	"fmt"
 	"math/rand"
+	"os"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 
-	fabricClient "github.com/hyperledger/fabric-sdk-go/fabric-client"
-	"github.com/hyperledger/fabric-sdk-go/fabric-client/util"
+	packager "github.com/hyperledger/fabric-sdk-go/pkg/fabric-client/packager"
 )
 
 const (
@@ -23,11 +23,14 @@ const (
 	chainCodePath = "github.com/example_cc"
 )
 
+var origGoPath = os.Getenv("GOPATH")
+
 func TestChaincodeInstal(t *testing.T) {
 
 	testSetup := &BaseSetupImpl{
 		ConfigFile:      "../fixtures/config/config_test.yaml",
-		ChainID:         "mychannel",
+		ChannelID:       "mychannel",
+		OrgID:           "peerorg1",
 		ChannelConfig:   "../fixtures/channel/mychannel.tx",
 		ConnectEventHub: true,
 	}
@@ -52,7 +55,11 @@ func testChaincodeInstallUsingChaincodePath(t *testing.T, testSetup *BaseSetupIm
 	if err := testSetup.InstallCC(chainCodeName, chainCodePath, chainCodeVersion, nil); err != nil {
 		t.Fatalf("installCC return error: %v", err)
 	}
-	chaincodeQueryResponse, err := client.QueryInstalledChaincodes(testSetup.Chain.GetPrimaryPeer())
+
+	// set Client User Context to Admin
+	testSetup.Client.SetUserContext(testSetup.AdminUser)
+	defer testSetup.Client.SetUserContext(testSetup.NormalUser)
+	chaincodeQueryResponse, err := client.QueryInstalledChaincodes(testSetup.Channel.PrimaryPeer())
 	if err != nil {
 		t.Fatalf("QueryInstalledChaincodes return error: %v", err)
 	}
@@ -81,9 +88,9 @@ func testChaincodeInstallUsingChaincodePath(t *testing.T, testSetup *BaseSetupIm
 func testChaincodeInstallUsingChaincodePackage(t *testing.T, testSetup *BaseSetupImpl) {
 
 	chainCodeVersion := getRandomCCVersion()
-	util.ChangeGOPATHToDeploy(testSetup.GetDeployPath())
-	chaincodePackage, err := fabricClient.PackageCC(chainCodePath, "")
-	util.ResetGOPATH()
+	changeGOPATHToDeploy(testSetup.GetDeployPath())
+	chaincodePackage, err := packager.PackageCC(chainCodePath, "")
+	resetGOPATH()
 	if err != nil {
 		t.Fatalf("PackageCC return error: %s", err)
 	}
@@ -105,4 +112,14 @@ func testChaincodeInstallUsingChaincodePackage(t *testing.T, testSetup *BaseSetu
 func getRandomCCVersion() string {
 	rand.Seed(time.Now().UnixNano())
 	return "v0" + strconv.Itoa(rand.Intn(10000000))
+}
+
+// ChangeGOPATHToDeploy changes go path to fixtures folder
+func changeGOPATHToDeploy(deployPath string) {
+	os.Setenv("GOPATH", deployPath)
+}
+
+// ResetGOPATH resets go path to original
+func resetGOPATH() {
+	os.Setenv("GOPATH", origGoPath)
 }

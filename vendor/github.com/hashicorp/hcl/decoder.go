@@ -89,9 +89,9 @@ func (d *decoder) decode(name string, node ast.Node, result reflect.Value) error
 	switch k.Kind() {
 	case reflect.Bool:
 		return d.decodeBool(name, node, result)
-	case reflect.Float32, reflect.Float64:
+	case reflect.Float64:
 		return d.decodeFloat(name, node, result)
-	case reflect.Int, reflect.Int32, reflect.Int64:
+	case reflect.Int:
 		return d.decodeInt(name, node, result)
 	case reflect.Interface:
 		// When we see an interface, we make our own thing
@@ -143,7 +143,7 @@ func (d *decoder) decodeFloat(name string, node ast.Node, result reflect.Value) 
 				return err
 			}
 
-			result.Set(reflect.ValueOf(v).Convert(result.Type()))
+			result.Set(reflect.ValueOf(v))
 			return nil
 		}
 	}
@@ -164,11 +164,7 @@ func (d *decoder) decodeInt(name string, node ast.Node, result reflect.Value) er
 				return err
 			}
 
-			if result.Kind() == reflect.Interface {
-				result.Set(reflect.ValueOf(int(v)))
-			} else {
-				result.SetInt(v)
-			}
+			result.Set(reflect.ValueOf(int(v)))
 			return nil
 		case token.STRING:
 			v, err := strconv.ParseInt(n.Token.Value().(string), 0, 0)
@@ -176,11 +172,7 @@ func (d *decoder) decodeInt(name string, node ast.Node, result reflect.Value) er
 				return err
 			}
 
-			if result.Kind() == reflect.Interface {
-				result.Set(reflect.ValueOf(int(v)))
-			} else {
-				result.SetInt(v)
-			}
+			result.Set(reflect.ValueOf(int(v)))
 			return nil
 		}
 	}

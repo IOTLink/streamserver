@@ -1,4 +1,6 @@
 #基于Fabric 中间件接口规范
+protoc --go_out=plugins=grpc:. stream.pro
+
 
 ##1 接口实现背景:
 基于目前fabric API接口，应用层、app等client异构语言调用不同sdk，本地存储证书，面临客户端sdk版本升级困难、存在sdk未修复的bug不易修复、证书丢失等一系列问题，现提供中间件层，降低应用层与Fabric-SDK紧耦合程度、统一管理用户证书、降低应用层与区块链网络紧耦合程度、方便多应用层service以统一的接口接入能力，先第一阶段先开发中间件层，提供异构语言高速接口，降低开发难度满足业务开发需求。
@@ -167,6 +169,8 @@ type ResultsReply struct{
     在当前目录下生成：文件名.pro.pb.go文件
     
     根据协议pro文件生成java语言协议：
+http://www.cnblogs.com/stephen-liu74/archive/2013/01/02/2841485.html
+ protoc --java_out=. --proto_path=. stream_java_msg.pro
     
     根据协议pro文件生成js语言协议：
     

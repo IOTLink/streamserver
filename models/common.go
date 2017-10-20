@@ -13,6 +13,9 @@ import (
 	"log"
 	"encoding/binary"
 	"strconv"
+	"os"
+	"strings"
+	"runtime"
 )
 
 const (
@@ -45,7 +48,8 @@ func ParseLocTimeFromTimestamp(timestamp string) int64 {
 }
 
 func GetLocTimeSecord() int64 {
-	timestamp := time.Now().Unix()
+	//timestamp := time.Now().Unix()
+	timestamp := time.Now().UnixNano()
 	return timestamp
 }
 
@@ -132,4 +136,19 @@ func Itoa(i int32) string {
 	return strconv.FormatInt(int64(i), 10)
 }
 
+func Tracefile(content string)  {
+	fd,_:=os.OpenFile("trace.txt",os.O_RDWR|os.O_CREATE|os.O_APPEND,0644)
+	fd_time:=time.Now().Format("2006-01-02 15:04:05");
+	fd_content := strings.Join([]string{fd_time,"=====",content,"\n"},"")
+	buf:=[]byte(fd_content)
+	fd.Write(buf)
+	fd.Close()
+}
 
+//get goroutine id
+func GoID() string {
+	var buf [64]byte
+	n := runtime.Stack(buf[:], false)
+	idField := strings.Fields(strings.TrimPrefix(string(buf[:n]), "goroutine "))[0]
+	return idField
+}

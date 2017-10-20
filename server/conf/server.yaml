@@ -1,0 +1,37 @@
+configFile:
+    path: "/conf/config.yaml"
+
+channels:
+    channel0:
+       channelID: "mychannel"
+       channelConfig: "channel0/channel.tx"
+       OrgID: "peerorg1,peerorg2"
+       connectEventHub: true
+       ca_org: "peerorg1"
+       enrolldir: "enroll_user_peerorg1"
+    channel1:
+       channelID: "mychannel1"
+       channelConfig: "channel1/channel1.tx"
+       OrgID: "peerorg2"
+       connectEventHub: true
+       ca_org: "peerorg2"
+       enrolldir: "enroll_user_peerorg2"
+
+server:
+  serverAddr: "0.0.0.0:50055"
+  serverId: "1"
+
+registerAuth:
+    client: "admin"
+    passwd: "adminw"
+
+
+dataBase:
+    type:   "postgres+"
+
+postgres:
+    user:   "root"
+    passwd: "123456"
+    dbname: "fabric"
+    dbport: 5432
+    dbhost: "127.0.0.1"
